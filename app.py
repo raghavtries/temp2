@@ -22,24 +22,31 @@ def create_model():
     model.compile(optimizer=Adam(0.001), loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
+# Load model
 nn_model = create_model()
-
 try:
     nn_model.load_weights('phq9_model.keras')
+    print("Model weights loaded successfully.")
 except Exception as e:
-    print(f"Failed to load model weights: {e}")
+    print(f"[Failed] failed to load model weights: {e}")
 
 HF_API_KEY = os.getenv("HF_API_KEY")
 
 def get_embedding(text):
     headers = {"Authorization": f"Bearer {HF_API_KEY}"}
     response = requests.post(
-        "https://api-inference.huggingface.co/embeddings/sentence-transformers/all-MiniLM-L6-v2",
+        "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2",
         headers=headers,
         json={"inputs": text}
     )
-    embedding = response.json().get("embedding")
-    return np.array([embedding])
+
+    print("📡 HuggingFace API response:", response.text)
+
+    embedding = response.json()
+    if not isinstance(embedding, list) or not embedding or not isinstance(embedding[0], list):
+        raise ValueError("[failed] invalid embedding received from HuggingFace API.")
+
+    return np.array([embedding[0]])
 
 def pred(text):
     embedding = get_embedding(text)
@@ -54,12 +61,17 @@ def index():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    text = request.form['text']
-    result = pred(text)
-    percentage_str = result.split('%')[0]
-    percentage = int(percentage_str)
-    return jsonify({'percentage': percentage, 'full_result': result})
+    try:
+        text = request.form['text']
+        print(f"Received input: {text}")
+        result = pred(text)
+        print(f"Prediction result: {result}")
+        percentage_str = result.split('%')[0]
+        percentage = int(percentage_str)
+        return jsonify({'percentage': percentage, 'full_result': result})
+    except Exception as e:
+        print(f"Error in /predict route: {e}")
+        return jsonify({'error': 'An error occurred during prediction'}), 500
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
-
