@@ -6,7 +6,7 @@ from sentence_transformers import SentenceTransformer
 app = Flask(__name__)
 
 # Load the sentence transformer model
-model_sentence = SentenceTransformer('paraphrase-albert-small-v2')
+model_sentence = SentenceTransformer('paraphrase-MiniLM-L3-v2')
 
 # Recreate the model architecture (same as in your Colab)
 def create_model():
